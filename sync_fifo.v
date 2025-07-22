@@ -15,50 +15,61 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module sync_fifo(   full, empty, data_out,                  // output signal 
-                    clk, reset, wr_en, rd_en, data_in   );  // input signal
+module sync_fifo #( parameter DATA_WIDTH = 16,              // word size
+                    parameter DEPTH = 32                    // memory size
+                 )( // output signals
+                    output full,                            // FIFO full flag
+                    output empty,                           // FIFO empty flag
+                    output reg [DATA_WIDTH - 1: 0] data_out,// output data bus
+                    // input signals
+                    input clk,                              // system clock
+                    input rst_n,                            // active-low reset
+                    input wr_en,                            // write enable signal
+                    input rd_en,                            // read enable signal
+                    input [DATA_WIDTH - 1: 0] data_in       // input data bus
+                    );
   
-  parameter DATA_WIDTH = 16;                                // word size
-  parameter DEPTH = 32;                                     // memory size
+  // calculate pointer size
+  localparam PTR_SIZE = $clog2(DEPTH);
   
-  input clk;
-  input reset;
-  input wr_en;
-  input rd_en;
-  input [DATA_WIDTH - 1: 0] data_in;
-  
-  output full;
-  output empty;
-  output reg [DATA_WIDTH - 1: 0] data_out;
-  
-  parameter POINTER_SIZE = $clog2(DATA_WIDTH);
-  
-  reg [POINTER_SIZE : 0] wr_pointer;
-  reg [POINTER_SIZE : 0] rd_pointer;
-  //no need to minus one becouse to check full and empty condition we need extra bit
-  
+  // [PTR_SIZE - 1 : 0] these bits are to point memory location
+  // extra MSB bit for full and empty detection  
+  reg [PTR_SIZE : 0] wr_pointer;
+  reg [PTR_SIZE : 0] rd_pointer;
+
+  // FIFO memory with size : DATA_WIDTH x DEPTH
   reg [DATA_WIDTH - 1: 0] mem [0: DEPTH - 1];
   
-  assign full =   ((wr_pointer[POINTER_SIZE-1 :0] == rd_pointer[POINTER_SIZE-1 :0])
-                  &&(wr_pointer[POINTER_SIZE] != rd_pointer[POINTER_SIZE]))
-                  ? 1'b1 : 1'b0;
-  assign empty =  (wr_pointer[POINTER_SIZE :0] == rd_pointer[POINTER_SIZE :0])
+  // FIFO is full when write and read pointers are equal in lower bits
+  // but MSBs are different (indicates one complete wrap-around)
+  assign full =   ((wr_pointer[PTR_SIZE-1 :0] == rd_pointer[PTR_SIZE-1 :0])
+                  &&(wr_pointer[PTR_SIZE] != rd_pointer[PTR_SIZE]))
                   ? 1'b1 : 1'b0;
                   
-  always @ (posedge clk or negedge reset) begin
-    if(!reset) begin
-      rd_pointer <= 0;
+  // FIFO is empty when write and read pointers are exactly equal
+  assign empty =  (wr_pointer[PTR_SIZE :0] == rd_pointer[PTR_SIZE :0])
+                  ? 1'b1 : 1'b0;
+
+  // WRITE LOGIC
+  always @ (posedge clk or negedge rst_n) begin
+    if(!rst_n) begin
       wr_pointer <= 0;
     end
-    else begin
-      if (rd_en) begin
-        data_out <= mem[rd_pointer];
-        rd_pointer <= rd_pointer + 1'b1;
-      end
-      else if (wr_en) begin
-        mem[wr_pointer] <= data_in;
-        wr_pointer <= wr_pointer + 1'b1;
-      end
+    else if (wr_en && !full) begin
+      mem[wr_pointer[PTR_SIZE - 1 : 0]] <= data_in;
+      wr_pointer <= wr_pointer + 1'b1;
+    end
+  end  
+  
+  // READ LOGIC
+  always @ (posedge clk or negedge rst_n) begin
+    if(!rst_n) begin
+      rd_pointer <= 0;
+      data_out <= 0;
+    end
+    else if (rd_en && !empty) begin
+      data_out <= mem[rd_pointer[PTR_SIZE - 1 : 0]];
+      rd_pointer <= rd_pointer + 1'b1;
     end
   end
 endmodule
