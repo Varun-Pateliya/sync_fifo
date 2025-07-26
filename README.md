@@ -21,13 +21,13 @@ A FIFO (First-In-First-Out) buffer is widely used in digital systems for tempora
 ---
 
 ## 📂 File Structure
-
+```
 ├── sync_fifo.v # FIFO design module
 ├── tb_sync_fifo.v # Testbench to verify FIFO
 ├── Output_data.jpg # Screenshot of console output (data match)
 ├── Output_waveform.jpg # Waveform of simulation (XSim or ModelSim)
 └── README.md # This file
-
+```
 ---
 
 ## 🔧 Parameters
