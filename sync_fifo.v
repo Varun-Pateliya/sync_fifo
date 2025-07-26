@@ -2,18 +2,18 @@
 //////////////////////////////////////////////////////////////////////////////////
 // Engineer: Varun Pateliya
 // 
-// Create Date: 21.07.2025 15:23:56
 // Design Name: sync_fifo
 // Module Name: sync_fifo
 // Project Name: sync_fifo_v1
 // Tool Versions: Vivado 2018.2
-// Description: To practice verilog design synchronous fifo
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
+// Description: Design parameterized synchronous FIFO using verilog,
+//              with Full/Empty flags,
+//              configurable width and depth
+// Revision:    Revision 0.01
+// Additional Comments: for more feature we can also add almost_full and
+//                      almost_empty flags
+//                      we can add reset synchronizer for better performance
 //////////////////////////////////////////////////////////////////////////////////
-
 
 module sync_fifo #( parameter DATA_WIDTH = 16,              // word size
                     parameter DEPTH = 32                    // memory size
@@ -21,6 +21,7 @@ module sync_fifo #( parameter DATA_WIDTH = 16,              // word size
                     output full,                            // FIFO full flag
                     output empty,                           // FIFO empty flag
                     output reg [DATA_WIDTH - 1: 0] data_out,// output data bus
+                    output reg valid,                       // valid flag
                     // input signals
                     input clk,                              // system clock
                     input rst_n,                            // active-low reset
@@ -46,7 +47,7 @@ module sync_fifo #( parameter DATA_WIDTH = 16,              // word size
                   &&(wr_pointer[PTR_SIZE] != rd_pointer[PTR_SIZE]))
                   ? 1'b1 : 1'b0;
                   
-  // FIFO is empty when write and read pointers are exactly equal
+  // FIFO is empty when write and read pointers are exactly same
   assign empty =  (wr_pointer[PTR_SIZE :0] == rd_pointer[PTR_SIZE :0])
                   ? 1'b1 : 1'b0;
 
@@ -66,10 +67,13 @@ module sync_fifo #( parameter DATA_WIDTH = 16,              // word size
     if(!rst_n) begin
       rd_pointer <= 0;
       data_out <= 0;
+      valid <= 0;
     end
     else if (rd_en && !empty) begin
       data_out <= mem[rd_pointer[PTR_SIZE - 1 : 0]];
       rd_pointer <= rd_pointer + 1'b1;
+      valid <= 1;
     end
+    else valid <= 0;
   end
 endmodule
